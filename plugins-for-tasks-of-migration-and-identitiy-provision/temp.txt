@@ -1,0 +1,493 @@
+Here are described the 
+most reliable way to upgrade instance for data migration
+dr infra setup
+order of steps to recover
+all the stoppers on the emergency to resolve
+
+If your goal is to completely eliminate human intervention—meaning you do not want to manage custom scripts, monitor container logs, or maintain a multi-stage upgrade pipeline—the industry-accepted alternative is to use a purpose-built infrastructure automation tool.
+Instead of writing custom container orchestration in GitLab, you hand the upgrade responsibility over to official configuration management code.
+Here are the two best ways to do this without intervention, along with a direct comparison to the pipeline method.
+------------------------------
+## Alternative 1: The Atlassian Ansible Collection (The Automation Engine)
+Instead of building a manual linear pipeline, you can use the official Atlassian Ansible Collection for Jira.
+Ansible is an industry-standard, agentless automation framework. Atlassian provides pre-written Ansible playbooks explicitly engineered to upgrade Jira instances sequentially.
+How it works: You provide Ansible with your target server IP, your current database credentials, and a list of versions you want to hit (e.g., ).
+Zero-Intervention Execution: The Ansible playbook automatically shuts down the service, backups files, downloads the new target binary, extracts it, configures the jira-application.properties paths, injects your database drivers, updates Java to version 17, and verifies system health metrics before moving to the next version block automatically.
+The Workflow:
+1. A single command kicks off the playbook.
+   2. It loops through the versions natively on a single VM.
+   3. It stops when the final Jira 10 environment becomes healthy.
+------------------------------
+## Alternative 2: Infrastructure as Code (Terraform + Packer)
+If your environments live inside an enterprise virtualization layer (like VMware, AWS, or OpenStack) within your secure contour, you can use Immutable Infrastructure Deployment.
+How it works: You pre-bake three server base templates (Gold Images) using Packer—one with Jira 8, one with Jira 9, and one with Jira 10.
+Zero-Intervention Execution: A single Terraform script provisions a temporary instance from the Jira 8 template, maps your backup database storage volume, boots up to verify schema health, deletes the instance, attaches that same updated storage volume to a new Jira 9 template instance, boots up, shuts down, and repeats the exact mapping for the final Jira 10 template instance.
+Why it's clean: It eliminates manual software installation troubleshooting entirely, as the software layers are validated prior to deployment.
+------------------------------
+## Pipeline vs. Ansible vs. Manual: Which is truly "Better"?
+| Evaluation Factor | GitLab Container Pipeline | Ansible Playbooks | Manual Staging Upgrades |
+|---|---|---|---|
+| Human Intervention | Zero (Triggered via API/git commit) | Zero (Single execution script) | High (Clicking, typing, verifying logs) |
+| Maintenance Overhead | Medium (Must maintain custom Docker images/files) | Low (Maintained directly by Atlassian/Community) | None (One-time manual event) |
+| Complex Schema Handling | Poor (Huge databases risk container timeouts) | Excellent (Runs natively on high-spec VM infrastructure) | Excellent (Can adjust resources on the fly) |
+| Best Used For... | Frequent, repeated programmatic trial test cycles. | Heavy, enterprise production-grade structural upgrades. | Tiny datasets or irregular, one-off project migrations. |
+------------------------------
+## Why Ansible is Ultimately "Better" than a Pipeline
+If your database is large, the GitLab Pipeline approach has a major technical flaw: Docker volume input/output speeds. Moving massive database dumps and attachment directories into ephemeral Docker storage layouts creates immense disk I/O bottlenecks and job timeouts.
+Ansible completely bypasses this issue. It runs directly on a dedicated, high-performance virtual machine. It manipulates the underlying database natively over local sockets, upgrades the application files instantly in place, and can be executed via a single automation hook.
+------------------------------
+To help
+13:37
+evaluate if Ansible is viable for your closed network layer, do you currently utilize Ansible Tower / AWX or standard Ansible Core CLI within your organization's infrastructure toolkit?
+13:37
+Рубцов Владислав Евгеньевич
+For a true Disaster Recovery (DR) scenario involving an air-gapped or strictly isolated network contour, traditional in-app Jira backups (like the XML backup utility) are completely non-viable. They cause major performance degradation on live systems, cannot handle massive data volumes, and require manual UI interaction.
+The industry-standard methods to automate zero-intervention backup and restoration for Jira Disaster Recovery focus entirely on the infrastructure layer, divided into three core architectures:
+------------------------------
+## Method 1: Storage-Level Snapshot Replication (Fastest Recovery Time)
+If your primary production instance and your DR instance are hosted on virtualized enterprise storage (such as VMware vSphere, AWS EBS, NetApp, or SAN volumes), you can completely bypass Jira-level configurations.
+How the Backup Works: On a scheduled timeline, the storage system takes a coordinated snapshot of the live Database storage volume and the JIRA_HOME shared attachment volume simultaneously.
+The Cross-Contour Move: Since you are in an isolated network, the block-level changes are packaged into an encrypted data stream and pushed across your security boundary via a dedicated storage diode or hardware firewall rule.
+Zero-Intervention Restoration: In a disaster event, an automation script (via Terraform or VMware PowerCLI) instantly destroys the broken DR virtual machine, provisions a new one from a template, attaches the replicated backup storage volumes, and starts the Jira service.
+Recovery Metrics: Recovery Time Objective (RTO) is under 15 minutes because no data needs to be manually imported; the system simply boots up using a clone of the original storage disks.
+------------------------------
+## Method 2: The Native DB Dump + Rsync Engine (Most Reliable for Air-Gaps)
+If you cannot mirror storage volumes directly across your contours due to physical air-gaps, you can use a native tool automation script managed by Ansible or cron.
+[PRODUCTION CONTOUR]
+  ├── 1. Run pg_dump (or Oracle expdp) directly to a local file.
+  ├── 2. Run rsync to sync only new/modified attachments to a local folder.
+  └── 3. Package both into an encrypted archive (.tar.gz.enc).
+         │
+         ▼ (Physically move file or stream via network boundary)
+[DISASTER RECOVERY CONTOUR]
+  ├── 4. Automated script detects the arrival of the new archive file.
+  ├── 5. Script wipes the old DR database: 'DROP DATABASE jiradb; CREATE DATABASE jiradb;'
+  ├── 6. Script restores the schema natively: 'pg_restore -d jiradb backup.dump'
+  └── 7. Script syncs the attachment folders directly into place.
+Why this is resilient: It doesn't use Jira to make the backup. It uses the database engine's native tools, which are incredibly fast and can easily handle multi-terabyte datasets without crashing.
+Zero Intervention: This runs continuously in the background. The DR site is always in a "warm standby" state, sitting exactly 1 backup cycle behind production.
+------------------------------
+## Method 3: Active-Passive Warm Standby (Automated Failover)
+If your isolated contours allow a one-way, tightly restricted database replication stream (e.g., PostgreSQL streaming replication on port 5432), you can build a continuous synchronization loop.
+Database: The production database streams its transactions live to a read-only replica database in your DR contour.
+Attachments: An automated script runs an incremental file sync (rsync) every 30 minutes to copy new attachments across the boundary.
+The Failover Action: The Jira application server at the DR site remains completely shut down so it doesn't try to write to the database. If production goes down, a monitoring script (like a GitLab pipeline or an Ansible automation script) triggers two commands:
+1. Promotes the DR database from "Read-Only Replica" to "Primary Writeable".
+   2. Runs start-jira.sh on the DR application server.
+------------------------------
+## Choosing Your DR Strategy Based on Targets
+To implement this correctly, you must define your targets.
+* If your organization
+13:50
+demands an RTO (Recovery Time) of minutes, you must use Method 1 (Storage Snapshots) or Method 3 (Warm Standby).
+* If your organizational security dictates a strict physical air-gap where data must be manually verified before passing boundaries, Method 2 (Native Dump + Rsync) is your only compliant option.
+------------------------------
+To help design the exact automation script for your DR environment, what are your target RTO (maximum allowed downtime) and RPO (maximum allowed data loss, e.g., 1 hour, 24 hours) requirements?
+13:50
+Yes, running a continuous database replication stream combined with a scheduled incremental rsync loop is the industry-standard architecture for a zero-intervention, low-RPO Disaster Recovery (DR) solution [^1].
+This creates an Active-Passive "Warm Standby" environment [^1]. It ensures your DR site stays continuously updated without human intervention, requiring only a simple trigger to bring it online during a disaster.
+------------------------------
+## How the Architecture Works Natively
+You will deploy two continuous background sync pipelines between your production contour and your isolated DR contour [^1]:
+[PRODUCTION CONTOUR]                                [ISOLATED DR CONTOUR]
+┌──────────────────┐                                ┌──────────────────┐
+│  Jira Production │ (Running)                      │   Jira DR Node   │ (Service STOPPED)
+└────────┬─────────┘                                └────────┬─────────┘
+         │                                                   │
+   [JIRA_HOME Data] ───► Scheduled Incremental Rsync ──────► [JIRA_HOME Data]
+         │                                                   │
+         ▼                                                   ▼
+┌──────────────────┐                                ┌──────────────────┐
+│   Primary DB     │ ───► Continuous DB Replication ───► │  Replica DB      │ (Read-Only)
+└──────────────────┘      (Streaming WAL Log / Log Shipping) └──────────────────┘
+## 1. The Database Layer: Streaming Replication
+Your production database engine handles this natively [^1]. It continuously streams its transaction files (Write-Ahead Logs, or WAL logs) to the DR database [^1].
+The State: The DR database engine is online but operates strictly in Read-Only / Standby mode [^1].
+The Network: It only requires a single, one-way network port opened between your contours (e.g., TCP port 5432 for PostgreSQL or 1521 for Oracle).
+## 2. The File Layer: Continuous rsync
+A simple background automation task (like an Ansible loop or a system cron job) executes an incremental rsync script every 15 to 30 minutes to synchronize files.
+Why it works: rsync uses a delta-transfer algorithm [^1]. It compares files between the two contours and only transmits newly uploaded attachments, avatars, and icons [^1].
+The Command: A typical secure background execution command looks like this:
+rsync -avz --delete -e "ssh -i /path/to/dr_key" /var/atlassian/application-data/jira/data/attachments/ dr_user@dr-server-ip:/var/atlassian/application-data/jira/data/attachments/
+------------------------------
+## Crucial Engineering Rules for this Strategy
+To prevent database corruption and synchronization loops, you must follow these two strict production rules:
+   1. Keep the DR Jira Service TURNED OFF: The Jira application server at your DR site must remain completely stopped during normal operations [^1]. If it boots up while the database is still in replication/read-only mode, the application will crash, throw errors, or attempt to write lock-files to the shared home directory, breaking the data stream.
+   2. Handle Indexes Intelligently: Do not use rsync to copy the jira_home/caches/indexes/ directory [^1]. Search indexes change hundreds of times per minute and will cause rsync to bloat your network channel. Instead, exclude the index folder from your sync script [^1]. When you perform a failover and start Jira at the DR site for the first time, simply let Jira trigger a clean, automated background reindex [^1].
+------------------------------
+## The Zero-Intervention Failover Script
+When a disaster occurs, you do not need to restore backups [^1]. Your failover process can be entirely automated via a single script (run manually or triggered by a pipeline) that executes three instant actions:
+Action 1: Send a command to the DR database to exit standby mode and become the primary writeable instance (e.g., running pg_ctl promote in PostgreSQL) [^1].
+Action 2: Run an immediate, final rsync sweep to catch any last-second attachments that were uploaded right before the production crash [^1].
+13:50
+Action 3: Run the native startup script (start-jira.sh) on your DR Jira application server [^1].
+The system will boot up natively in your secure contour, pick up the fully replicated database data, and be completely online within minutes [^1].
+------------------------------
+Would you like assistance writing the automated failover Bash script or configuring the rsync exclusion parameters to ensure your index folders are safely skipped [^1]?
+13:50
+To make a Disaster Recovery (DR) system completely automated and zero-intervention, you must implement an architecture called an Automated Failover Orchestrator.
+The strategy is broken down into two distinct phases: Automated Detection (how it knows production is dead) and the Failover Execution Strategy (how it safely brings the DR site online).
+------------------------------
+## Phase 1: Automated Detection Strategy
+You cannot let the DR Jira server monitor the Production Jira server directly. If a network partition happens, both servers might think the other is dead, resulting in a catastrophic data corruption scenario known as Split-Brain Syndrome.
+Instead, you use an independent, lightweight monitoring service (a Quorum/Witness node) deployed on a separate infrastructure layer within your secure contour. This monitor runs a continuous verification script every 10–30 seconds.
+## The Three-Way Health Check Logic
+The monitoring script evaluates production using a strict three-tier check:
+[ Monitoring Node ]
+       │
+       ├─► 1. ICMP Ping (Network Layer: Is the server VM alive?)
+       ├─► 2. TCP Port Check (Application Layer: Is Jira port 8080/443 responsive?)
+       └─► 3. HTTP REST API Endpoint (Data Layer: Does '/rest/api/2/serverInfo' return 200 OK?)
+## Defining the Disaster Condition
+A temporary network spike is not a disaster. The monitoring tool uses an error threshold to confirm a true outage:
+The Rule: If all three checks fail continuously for a designated window (e.g., 3 consecutive minutes), the system officially declares a disaster state.
+The Safety Interlock: Before triggering the recovery phase, the monitoring tool attempts to send a hard SSH power-down or isolation command to the production virtual machine. This ensures production is truly dead and cannot accidentally wake up later to write conflicting data.
+------------------------------
+## Phase 2: The Failover Execution Strategy
+Once a disaster is verified, the Monitoring Node executes an automated recovery script (via Ansible, GitLab Runner, or a system webhook) directly against the DR environment.
+To prevent data corruption, the script executes four sequential steps with strict dependencies:
+[ Disaster Declared ]
+         │
+         ▼
+ ┌───────────────┐
+ │ 1. FENCE PROD │ ──► Cuts off the old production network paths.
+ └───────┬───────┘
+         ▼
+ ┌───────────────┐
+ │ 2. PROMOTE DB │ ──► Force-stops replication; makes DR Database writable.
+ └───────┬───────┘
+         ▼
+ ┌───────────────┐
+ │ 3. FINAL SYNC │ ──► Flushes any remaining bytes in the rsync queue.
+ └───────┬───────┘
+         ▼
+ ┌───────────────┐
+ │ 4. START JIRA │ ──► Boots the DR app server and updates DNS routes.
+ └───────────────┘
+## Step 1: Network Fencing
+The script alters network routing or firewall rules to completely block traffic to the old production IP. This guarantees that when users reconnect, they cannot reach the old, broken instance.
+## Step 2: Database Promotion
+The DR database is currently sitting in a read-only, continuous recovery loop. The script forces it to become a primary standalone database.
+Example for PostgreSQL: The script executes pg_ctl promote -D /var/lib/postgresql/data.
+Result: The database immediately stops listening for replication streams, applies its final transaction logs, and opens itself up for read-and-write operations.
+## Step 3: Final Attachment Flush
+The script triggers one final, rapid rsync sweep. Since rsync only processes data differentials, this takes only a few seconds to scrape up any trailing attachments or avatars uploaded immediately prior to the crash.
+## Step 4: Application Boot & DNS Switch
+Service Launch: The script sends an SSH command to the DR app server to run /opt/atlassian/jira/bin/start-jira.sh.
+Traffic Routing: The script updates your internal DNS server or Local Load Balancer to point the main Jira URL (e.g., jira.company.internal) away from the production IP and over to the DR IP.
+Auto-Reindex: Because the caches/indexes folder was safely excluded from the continuous rsync loop to prevent corrupt
+13:53
+index files, the Jira application recognizes the missing index on startup and automatically launches a background reindex task, making search fully operational within minutes.
+------------------------------
+Would you like to see the specific configuration syntax for setting up an open-source monitoring tool like Consul, Keepalived, or a custom health-check script to handle this validation loop?
+13:53
+To make this process truly zero-intervention, the automated system follows a strict, programmatic sequence to handle the application state, file systems, and confirmation steps without crashing.
+Here is exactly what happens mechanically across those specific areas during a recovery event:
+------------------------------
+## 1. Does it rerun the App?
+No, it does not "rerun" an already running app.
+On the DR side, the Jira application process (java) must be completely dead/stopped during normal operations.
+If Jira were running on the DR side while WAL-G was restoring the database beneath it, the application would immediately panic, throw fatal database connection pool errors, and lock up. The script starts the Jira application for the very first time only after the database has been fully restored and promoted to read-write mode.
+------------------------------
+## 2. Does it reattach the PVC?
+This depends on whether you are running Jira on virtual machines (VMs) or inside Kubernetes (K8s) using Persistent Volume Claims (PVCs):
+If using Kubernetes (PVCs): Yes. The recovery orchestrator deletes the dead production Jira Pod. It then spins up the DR Jira Pod, and Kubernetes automatically detaches the Read-Write-Once (RWO) attachment storage PVC from the old node and reattaches it to the new DR node.
+If using Virtual Machines (Your current setup with rsync): No. Because you are using continuous rsync, the DR virtual machine already has its own local disk folder filled with the replicated files. The script does not move a disk; it just runs a final rsync to catch up, then points Jira to that local folder.
+------------------------------
+## 3. To which point in time is data restored?
+Because you are using WAL-G, you achieve Point-In-Time Recovery (PITR).
+When PostgreSQL boots up with the standby.signal flag, it downloads and replays every single WAL (Write-Ahead Log) file sequentially. It will restore your data to the exact millisecond of the last successfully uploaded WAL file.
+Database RPO: Usually less than 1 minute of data loss (PostgreSQL archives WAL files every few seconds or as soon as a 16MB segment fills up).
+File System (Attachments) RPO: Restored to the exact timestamp of your last successful rsync loop (e.g., maximum 15 minutes ago).
+The system works directly on the restored database files and the rsync-synchronized attachment directory, merging them into a cohesive application state on startup.
+------------------------------
+## 4. Does it ask for confirmation?
+In a purely automated zero-intervention strategy, it does not ask for confirmation. It relies entirely on the automated monitor node's "and-gate" logic threshold to make the executive decision.
+However, in many enterprise environments, engineers do not trust an automated script to initiate a full site failover without a human eyes-on verification. You can configure this behavior in one of two ways:
+## Option A: True Zero-Intervention (No Confirmation)
+The Workflow: Production dies $\rightarrow$ Monitor waits 3 minutes $\rightarrow$ Monitor executes the recovery script $\rightarrow$ System comes online at DR site.
+Risk: If a temporary network glitch blinds the monitor node, it might trigger a false failover (split-brain).
+## Option B: ChatOps / Push-Button Confirmation (Recommended Best Practice)
+Instead of a blind script or a manual SSH login, you inject a single automated checkpoint:
+[Production Fails 3 Mins] ──► [Script Sends PagerDuty/Telegram/Slack Alert]
+                                                    │
+                                                    ▼
+                                    "Production is dead. Confirm DR Failover?"
+                                     [ YES, RUN FAILOVER ]  [ NO, CANCEL ]
+                                                    │
+                                                    ▼ (Human Clicks Button)
+                                    [Script Executes Automatically]
+The infrastructure handles 100% of the complex commands, database fetching, and rsync flushes natively, but it waits for an engineer
+13:58
+to tap a single confirmation button before executing the final, destructive database promotion.
+------------------------------
+If you prefer the Push-Button Confirmation method, what internal communication tool (e.g., Telegram, Slack, Microsoft Teams, or email alerts) does your team use to receive infrastructure alerts?
+13:58
+Yes, if you are running your workloads inside a Kubernetes cluster (using a StatefulSet or Deployment for Jira), the old application pods are deleted, and the new application pods are re-run using a completely separate, pre-synchronized DR PVC. [1, 2] 
+Because your production and DR contours are network-isolated, your apps cannot share a physical piece of storage. Therefore, the exact lifecycle of the apps and the PVCs during a disaster recovery event works through a synchronized handover process. [3, 4] 
+------------------------------
+## Step 1: The Idle State (Before Disaster)
+Production Contour: The Production Jira pod is active and mounted to the Production PVC. Users are interacting with it normally.
+DR Contour: The DR Jira pod is scaled down to zero replicas (replicas: 0). The DR PVC is sitting unattached to any app pod.
+The Data Bridge: A background utility (like an automated cron container) runs in the DR contour, pulling the file systems via your rsync script over the secure bridge and continuously writing those bytes onto the idle DR PVC. [3, 5] 
+------------------------------
+## Step 2: The Disaster Event (App and PVC Lifecycle)
+When the monitoring node determines that the production environment has died, it performs the automated failover sequence:
+   1. Kill the Production Apps: The orchestrator executes a script to scale down or delete the Production Jira pods (kubectl scale statefulset jira-prod --replicas=0). This frees up any active locks on the old infrastructure.
+   2. Verify the DR PVC: The orchestrator runs a final data-sync verification to ensure the DR PVC has swallowed all available file system blocks up to the moment of the crash.
+   3. Boot the DR Apps with the DR PVC: The orchestrator scales up the DR Jira deployment (kubectl scale statefulset jira-dr --replicas=1).
+   4. The Mount: Kubernetes reads the pod configuration file, spins up a fresh container image (Jira 10), and attaches the pre-synchronized DR PVC directly to that new container's mount point (e.g., /var/atlassian/application-data/jira). [3, 6] 
+------------------------------
+## To Which Point is the App Working From?
+When the new Jira 10 app boots up with that DR PVC and the newly promoted WAL-G PostgreSQL database, it checks the internal system status and works precisely from these coordinates:
+Database Records: It works from the exact transaction marker of your last uploaded WAL file (usually less than a few minutes or seconds before the crash). Every issue description, status, project configuration, and custom field change made up to that moment is fully intact.
+Attachments and Media: It works from the exact state of your last successful rsync flush. For example, if your file replication loop runs every 15 minutes, any PDF, image, or zip file attached to a Jira ticket within that final 15-minute failure window will show a missing attachment icon, but the ticket text itself will be perfect.
+Caches and Indexes: Because the search index folders are excluded from your rsync loop to prevent block corruption, the Jira application detects an empty cache folder on the DR PVC upon startup. It immediately runs a clean, automated background reindex task. [4] 
+------------------------------
+## Does it Ask for Confirmation?
+By default, standard Kubernetes orchestration scripts will execute the failover without asking for human confirmation if they are programmed for high availability (HA).
+However, because this is a cross-contour disaster event, forcing a cluster to automatically spin up apps on a secondary storage volume without human oversight can lead to a race condition if the primary site suddenly wakes up.
+The standard operational design pattern is to set your recovery pipeline script to pause right before the kubectl scale jira-dr --replicas=1 command. The pipeline drops a critical alert into your terminal or chat system with a single message:
+ PRODUCTION UNRESPONSIVE: WAL-G DB ready for promotion. DR PVC is synchronized. Do you want to route traffic to the DR App and initialize the DR PVC mount? [CONFIRM
+13:58
+FAILOVER]
+An engineer clicks the confirmation button, and the automated script takes over the technical execution—mounting the PVC, starting the Jira 10 container, and flipping your internal DNS routes within seconds. [3, 7] 
+------------------------------
+To help refine this cluster-level setup, are you managing your Kubernetes deployments using a native Helm Chart (like Atlassian's official Data Center charts) or custom YAML manifests? [1, 8] 
+[1] https://confluence.atlassian.com
+[2] https://medium.com
+[3] https://medium.com
+[4] https://aws.amazon.com
+[5] https://portworx.com
+[6] https://www.reddit.com
+[7] https://docs.redhat.com
+[8] https://github.com
+13:58
+Рубцов Владислав Евгеньевич
+Since you have covered Disaster Recovery (DR), Cross-Contour Migration Pipelines, Core System Upgrades (v8 to v10), and Plugins/Scripting (CMJ/REST APIs), your technical blueprint is highly comprehensive.
+However, jumping two major generations (Jira 8 to Jira 10) in an isolated network architecture introduces a few final critical operational blind spots that are frequently overlooked until deployment day.
+These four specific areas have not yet been covered:
+------------------------------
+## 1. The Jira 10 Structural Gaps (Architectural Breakers)
+Jira 10 introduces massive platform-level deprecations that do not exist in Jira 8. If these are not accounted for in your migration, the application will boot, but core functionalities will fail:
+Database Driver Separation: Jira 10 no longer bundles database drivers (like the PostgreSQL JDBC driver) within the installation package. Your upgrade pipeline or container blueprints must explicitly inject the correct, verified .jar file into the /lib/ folder.
+The End of Assets (Insight) Database Tables: In Jira 8, Assets (Insight) data lived in specialized, separate relational database schemas. In Jira 10, Atlassian has completely overhauled how Asset data is cached and indexed. If your projects rely on Assets fields, a direct database restore via WAL-G will require an intensive post-upgrade manual data schema migration task.
+Java 17 Garbage Collection Profiles: Jira 8 ran on Java 8 or 11, typically using parallel garbage collection. Jira 10 strictly requires Java 17 and utilizes the G1GC garbage collector. Your orchestration profiles must update system environment variables (JVM_SUPPORT_RECOMMENDED_ARGS) to prevent major application performance bottlenecks upon DR booting.
+------------------------------
+## 2. User Directory & Identity Management in Isolated Contours
+If your production and DR environments reside in isolated contours, their access control mechanics must be perfectly mirrored:
+LDAP/Active Directory Sychronization: If Jira syncs with a corporate Active Directory or LDAP server, the DR contour must have access to a local replica of that directory. If it doesn’t, when Jira 10 boots up on the DR PVC, no users will be able to log in, because the application cannot verify passwords against the production-network identity provider.
+The Local Admin Trap: Your automated pipeline backup must include at least one emergency, locally managed system administrator account (stored directly in the database, not via LDAP) so you can access the UI to verify health parameters even if the network identity layer fails during a disaster.
+------------------------------
+## 3. Application Links & Webhooks (The Integration Echo)
+Jira rarely runs in complete isolation; it is usually linked to tools like GitLab, Confluence, or Bitbucket.
+Network Echoes: When the DR Jira node boots up from the production database state, it inherits all the internal Application Links and outbound Webhooks from the production server.
+The Risk: The newly awakened DR Jira 10 app will immediately attempt to broadcast webhook payloads to the Production GitLab or Production Confluence instances. In an isolated network, this can flood firewall logs with connection timeouts, or worse, pollute a shared testing tool with duplicate notifications. Your recovery script should run a post-boot database query to toggle these integration statuses to disabled.
+------------------------------
+## 4. Operational Runbooks for Day-2 Recovery
+A disaster recovery plan is incomplete without a Failback Strategy. Once the main production datacenter is repaired, you must move the data back from the DR contour to Production.
+The Dilemma: While production was down, your users created new tickets, logged hours, and moved workflows on the DR Jira 10 instance. The old production database is now stale.
+The Solution: You must design the reverse pipeline loop. You will need to turn off the DR site, execute a wal-g backup-push from the DR database, transfer those transaction segments back across the network gap to the production
+14:03
+contour, and restore them to the production node before allowing users back into the primary environment.
+------------------------------
+To ensure no details are missed, do your projects utilize Jira Service Management (JSM) Assets (Insight) fields, or do you integrate Jira with an external identity provider like Active Directory / Crowd?
+14:03
+To ensure your architecture covers every single blind spot, we need to think beyond routine infrastructure failures and migration steps.
+When running an enterprise platform like Jira 10 Data Center inside secure, air-gapped, or network-isolated contours, there are a few final, highly specific operational and security scenarios you must plan for.
+------------------------------
+## 1. Security & Cryptographic Scenarios (The Security Boundary)
+Because you are crossing network contours and running in isolated loops, security mechanics will actively try to block your automated recovery scripts:
+Encryption Key Rotation (Atlassian Secret Store): Jira 10 securely encrypts database passwords and application connections using local encryption configuration files (symlink keys or keystores) stored in the filesystem. If you copy the database via WAL-G but the DR cluster does not have the exact same cryptographic key files in its local directory, Jira 10 will fail to boot because it cannot decrypt its own database passwords.
+SSL/TLS Certificate Expiration on DR: Because the DR Jira pod sits idle (replicas: 0) and is rarely routed to, engineers often forget to update its SSL/TLS certificates. During a disaster, your automated DNS switch will work, but users will get a fatal browser warning (or API blocks) because the DR node is presenting an expired or unrenewed wildcard certificate. Your pipeline must include automated certificate deployment to the DR ingress layer.
+The Shared Secret Token Reset: Jira communicates with apps and webhook listeners via cryptographically signed tokens. If your DR environment sits in a different subnet or uses a slightly different base URL, apps like Jira Automation or script runner engines may throw token validation faults upon boot until clear cache routines are executed.
+------------------------------
+## 2. Deep Application-Level Cleanup Scenarios
+When a production database is suddenly ripped away and restored on a different network tier, the data payload carries "stale states" that can paralyze the application:
+* Cluster Node Ghosting (The Node ID Trap): Jira 10 operates as a Data Center clustered application. When you clone the production database, it includes a table (clusterednode) listing all the active node IDs from the production cluster. When the DR instance boots up, it will read that table, think it is part of a split cluster, and spend 10–20 minutes trying to communicate with production nodes that do not exist over the network. Your recovery script should execute a SQL query to purge stale entries from the clusterednode table before starting the Jira container:
+DELETE FROM clusterednode;
+* Stuck Database Locks: If production crashed mid-transaction, there may be active lock rows left behind in the Jira database configuration tables (such as clusterlockstatus). Jira uses these rows to ensure two nodes don't run the same background task. If a lock row is stuck on a dead production node ID, the DR instance will freeze upon boot, waiting for a node that will never respond to release the lock.
+------------------------------
+## 3. Edge-Case Disaster Scenarios (Beyond the Hardware Crash)
+You must design your recovery pipeline to handle scenarios where the production infrastructure is perfectly fine, but the data or software is compromised:
+The Cyber Attack / Ransomware Scenario: If your production database or filesystem is compromised by an internal threat or malware, your continuous rsync loop and WAL-G pipeline will faithfully replicate the corrupted blocks directly into your DR site within 15 minutes.
+The Fix: Your strategy must account for delayed point-in-time recovery. Instead of always fetching the LATEST WAL-G backup, your recovery script must allow an operator to input a specific timestamp from 12 or 24 hours before the infection occurred, allowing you to roll back the entire cluster to a clean historical snapshot.
+The "Bad Configuration" Lockout: An administrator changes a global permission scheme, updates a critical script in a plugin, or messes up the system
+14:06
+authentication settings, immediately locking all users out of Jira production.
+* The Fix: You can use your pipeline as an automated sandbox. You can spin up the DR environment using yesterday's data, log in as a local admin to reverse the broken configuration change, export a clean database fragment, and apply it back to production without taking down the main system for troubleshooting.
+------------------------------
+## 4. Licensing and Compliance Scenarios
+* Appfire (CMJ) and Atlassian License Checks: When Jira boots up in an isolated DR contour, it evaluates the server's hardware signature or IP space. In rare cases, major infrastructure shifts cause Jira to flag the instance as a "Developer/Staging" clone, which can limit user sessions or place third-party apps (like CMJ) into read-only evaluation modes. Ensure your DR deployment manifests include a mechanism to dynamically inject valid Data Center license strings into the application properties.
+------------------------------
+## Operational Checklist: Are you fully covered?
+Before writing the final lines of your code, ensure your team can answer these four operational questions:
+   1. Do you have a documented rollback/failback plan for when the disaster is over?
+   2. Is there a monthly scheduled test where the pipeline runs a mock recovery into an isolated staging namespace to verify WAL-G backup validity?
+   3. Who has the physical authority to press the Push-Button Confirmation to execute a cross-contour network routing shift?
+   4. Are system log targets (like /var/atlassian/application-data/jira/log/) forwarded to an independent log aggregation server inside the DR contour so you can debug the application if the container crashes mid-boot?
+------------------------------
+To wrap up this comprehensive architectural layout, would you like me to generate a complete SQL initialization script that clears out stale cluster nodes and database locks to include in your post-restore, pre-boot automated pipeline?
+14:06
+When evaluating an enterprise architecture across isolated network contours for a Jira 8 to Jira 10 platform jump, the final, non-negotiable operational blocks can be organized into a structured map.
+These hard blocks represent the underlying friction between the data layer (filesystem and WAL-G database streams) and Jira 10's strict code execution logic. [1, 2] 
+------------------------------
+##  Component Block 1: The Strict Application State (No Rerun)
+You cannot treat the DR instance as a "live hot standby." The core application blocks are structural:
+Process Lockout State: The DR Jira container or VM must remain in a terminated (replicas: 0 or system process stopped) state [^1]. If Jira 10 boots up while WAL-G is reconstructing block headers or while rsync is updating a file stream, the JVM process will crash instantly, corrupt your localized search caches, and place corrupted data handles in the file structures.
+The Database Driver Block: Jira 10 completely unbundles database connection drivers from its default archive directories. If your automation script spins up the DR pod, but your initialization process forgets to inject the modern PostgreSQL JDBC .jar file directly into the application /lib/ path, the application process will fail to initialize. [1, 3] 
+------------------------------
+##  Storage Block 2: Persistent Volume (PVC) Isolation
+Because your contours are completely isolated from each other, storage attachments have hard boundaries:
+No Cross-Contour Mounts: The Production PVC and the DR PVC are entirely different physical storage allocations. A true storage attachment handover across isolated zones cannot happen natively.
+The Synchronized File Copy Block: Your file replication layer (rsync) acts as the manual data pipeline bridging the Production PVC to the DR PVC.
+The App-to-Storage Loop: When the orchestrator decides to initiate a recovery phase, it tears down the dead production container, executes a final file synchronization sweep, and runs a deployment script to boot the DR container image, which mounts your pre-synchronized DR PVC. [4] 
+------------------------------
+##  The Timeline Block: Point-In-Time Constraints
+Your recovered data coordinates are split across two different recovery metrics:
+Database Point (WAL-G): The database engine recovers data up to the exact transaction record of your last uploaded WAL segment. Because PostgreSQL continuously pushes WAL files as they fill or via a short timeout loop, your database state is nearly real-time (often within minutes or seconds of the crash).
+Attachment Point (rsync): The filesystem works from the snapshot of your last completed replication execution loop. If your cron container triggers rsync every 15 minutes, you face a maximum 15-minute file discrepancy window.
+The Index Cache Block: To prevent file pointer fragmentation during transfer, your rsync architecture must actively block the transfer of the caches/indexes directory. When the DR Jira 10 container mounts the PVC for the first time, it intentionally starts with no search index, automatically triggering an internal background reindex task. [1] 
+------------------------------
+##  The Confirmation Block: Decoupled Decision Automation
+A true, automated recovery platform manages the entire technical layout natively, but introduces a deliberate validation wall:
+[ Production Down 3 Mins ] ──► [ Automation Orchestrator ]
+                                           │
+                                           ▼ (Automated Verification)
+                               "Systems Prepped. Safe to cut over?"
+                                     [ AUTHORIZE FAILOVER ]
+                                           │
+                                           ▼ (Human Confirms via CLI/UI)
+                               [ Execution Phase Fires Automatically ]
+* Why It Avoids Absolute Automation: If a transient routing error temporarily cuts the connection between your network contours, an entirely automated scripts may trigger a false failover event. If both the
+14:08
+Production app and the DR app attempt to execute write processes at the same time, it causes catastrophic data corruption.
+* The Validation Strategy: The monitoring system automates 100% of the heavy lifting—verifying the backup files, running the WAL-G retrieval loop, and tracking rsync differentials—but pauses right before executing the final, destructive database promotion command, waiting for a system administrator to issue a single validation confirmation.
+------------------------------
+##  Hidden Database Configuration Blocks
+The final, deep technical traps exist within the imported production database rows themselves:
+The Webhook Filter Overlap Block: During a Jira 10 data upgrade, Jira runs a native task to migrate webhooks from old database layouts (AO_4AEACD_WEBHOOK_DAO) over to clean structures (AO_A0B856_WEBHOOK). If any of your production Jira 8 webhooks contain a JQL filter pattern stretching beyond 255 characters, the native upgrade task will crash because the Jira 10 target column size is restricted to VARCHAR(255). Your script must truncate long webhook strings inside the database prior to the upgrade execution.
+The Asset Replication Constraint Block (JSM): If your teams use Jira Service Management Assets (formerly Insight), the database upgrade tasks will completely lock up on tables like AO_8542F1_IFJ_OBJ_HIST if your target database infrastructure has active native database mirroring or replication constraints turned on. The upgrade execution requires unrestricted, exclusive transaction capabilities on the underlying tables. [5, 6] 
+------------------------------
+To complete the blueprint for your automation pipeline, do you require the exact database command strings to resolve the 255-character webhook truncation issue or clear out stale cluster configurations before the Jira 10 process boots? [5] 
+[1] https://confluence.atlassian.com
+[2] https://confluence.atlassian.com
+[3] https://confluence.atlassian.com
+[4] https://confluence.atlassian.com
+[5] https://jira.atlassian.com
+[6] https://community.atlassian.com
+14:08
+To map your entire enterprise architecture with absolute precision, we must look at it through every distinct operational lens. You have already defined the first six core perspectives (POVs):
+   1. Migration (CMJ snapshot extraction, cross-contour project isolation)
+   2. Upgrade (Jira 8 → 9 LTS → 10 staging jumps, archive extraction, Java 17)
+   3. Backup (Continuous filesystem zipping, wal-g base-push, scheduled data state isolation)
+   4. Recovery (Incremental wal-g data fetching, automated transaction log replaying)
+   5. DR (Disaster Recovery) (Active-passive layouts, replication streams, rsync matching)
+   6. Deploy (Kubernetes pod scaling, DR PVC attachment, container image initialization)
+To leave zero gaps, here are the remaining 6 perspectives (POVs) required to run a secure, compliant, and resilient Jira 10 platform inside isolated network contours:
+------------------------------
+## 7. The Health & Observability POV (Monitoring & Metrics)
+When Jira boots up in a DR contour or undergoes a migration, you cannot just look at whether the container status reads "Running." You need deep system optics to verify it is actually functional.
+The Log Scrape Block: Jira 10 introduces a completely new asynchronous logging engine (Log4j2). Your monitoring tools must scan /var/atlassian/application-data/jira/log/atlassian-jira.log for specific upgrade marker strings like Upgrade tasks completed successfully or Jira is ready to serve users.
+The HealthCheck API: The orchestrator must poll the internal native endpoint http://localhost:8080/rest/api/2/serverInfo to confirm the application can communicate with the newly promoted database before changing network DNS.
+Performance Metrics: Jira 10 includes a built-in Prometheus metrics endpoint. Your DR monitoring setup must scrape this to ensure that your Java 17 Garbage Collection (G1GC) parameters aren't hitting CPU throttling walls during the initial large-scale background reindex.
+------------------------------
+## 8. The Networking & Traffic Routing POV (Cutover)
+Once the application layer is running on the DR PVC, you must handle how users and automated external systems securely reach the new environment without security certificate rejections.
+DNS TTL (Time to Live) Mitigation: If your internal DNS server caches your Jira domain names (e.g., jira.company.internal) for hours, users will still try to access the dead production server even after a failover. Your networking configuration must enforce a low TTL (e.g., 60 seconds) on your primary records.
+Load Balancer/Ingress Flipping: Instead of modifying DNS records directly, a preferred method is using a Local Load Balancer (like NGINX, HAProxy, or a Kubernetes Ingress Controller). The orchestrator updates the upstream routing block from server prod-ip:8080 to server dr-ip:8080 instantly.
+SSL/TLS Keystore Matching: Jira 10 relies heavily on Reverse Proxies for HTTPS termination. The DR contour's ingress proxy must hold identical SSL wildcard certificates or local truststores, ensuring automated tools (like GitLab runners trying to post webhook statuses) do not hit untrusted SSL handshake errors.
+------------------------------
+## 9. The Security & Access POV (Hardening)
+Operating inside an air-gapped or secure network means security baselines will actively block configurations brought over from a different network zone.
+The Local Administrator Backdoor: If your Production Jira relies on an active network connection to an identity provider (Active Directory / LDAP / Crowd) that goes down during the disaster, no one can log in to the recovered DR instance. The database state must include a pre-configured local administrator account (admin_local) stored inside the cwd_user internal database directory as a fallback.
+Secret Store Decryption: Jira 10 introduces the Atlassian Secret Store to encrypt database passwords inside dbconfig.xml. If you restore the database via WAL-G, the DR container filesystem must possess the exact same cryptographic key files (symlink files or encryption keys) as production, or it
+14:11
+will fail to decrypt its own database credentials.
+* The "Write-Lock" Clean: If the production cluster crashed suddenly, it leaves dirty security tokens and temporary session files inside the database. A post-restore script must flush active HTTP session state tables to prevent user session hijacking.
+------------------------------
+## 10. The Integration & Lifecycle POV (The Network Echo)
+A production Jira instance rarely runs in isolation; it usually has connections to tools like Confluence, Bitbucket, or GitLab. When you wake up a clone of that data, it retains those exact configurations.
+The Outbound Storm (Application Links): When the DR Jira 10 instance boots from the production data dump, it will instantly try to connect to the linked production Confluence or production GitLab. If those environments are also down or on a separate network segment, Jira's connection pool threads will lock up waiting for timeouts, slowing the system to a crawl.
+Disabling Webhooks Natively: Your deployment script should execute a pre-boot SQL query against the database to toggle all outgoing webhooks to a disabled status. This prevents the newly awakened DR site from blasting duplicate tracking notifications or API calls to external production environments.
+------------------------------
+## 11. The Day-2 Operations POV (Failback & Synchronization)
+A disaster recovery plan is only 50% complete if it doesn't include a plan for when the crisis ends. You must map the point of view of returning home.
+The Stale Production Dilemma: While production was dead, your users were actively creating new issues, leaving comments, and closing sprints on the DR Jira 10 server. The old production database is now stale.
+The Reverse Pipeline Loop: You cannot just turn production back on. You must treat your DR site as the temporary source of truth, run a wal-g backup-push from the DR database, transfer those transaction segments back across the isolated contour, and restore them to your production node before opening the main doors to users.
+------------------------------
+## 12. The Compliance, Audit & Testing POV (Validation)
+Regulated environments require concrete proof that a disaster recovery system works without destroying data integrity.
+The Mock Fire Drill Protocol: You need an automated testing pipeline that executes the entire recovery sequence inside an isolated testing network namespace once a month. It fetches the WAL-G backups, deploys the DR PVC, boots Jira, confirms a 200 OK health status, and then completely tears down the container environment to verify the recovery blocks remain valid over time.
+The Change Log Audit Trail: The migration tool (CMJ) and native upgrade tasks alter database row layouts. Your pipeline outputs must write detailed compliance reports to a secure log collector showing exactly which database tables were rewritten, ensuring your configuration compliance records remain intact across your security contour.
+------------------------------
+To complete your master architecture design, would you like to review the specific SQL scripts used to toggle external integrations and webhooks to prevent your DR site from echoing traffic into external systems upon booting?
+14:11
+To complete the master blueprint for your isolated Jira 10 environment, we need to expand from purely technical infrastructure steps (the "how it boots") into the operational ecosystem.
+When navigating a two-generation platform leap (Jira 8 to 10) in an air-gapped contour, a variety of low-level configurations, companion product installations, user-level best practices, and integration strategies must be meticulously structured. [1, 2] 
+------------------------------
+## Tier 1: Low-Level Performance & OS Configurations
+These configurations happen directly inside your virtual machines or containers to prevent Java 17 and Jira 10 from freezing under enterprise workloads. [3] 
+* JVM Garbage Collection Tuning: Jira 10 shifts completely to Java 17. The memory tuning syntax used in Jira 8 will crash or severely slow down Jira 10. You must configure your environment to use the G1 Garbage Collector (G1GC) with aggressive string deduplication. Update your setenv.sh or Docker environment variables with:
+JVM_SUPPORT_RECOMMENDED_ARGS="-XX:+UseG1GC -XX:+ExplicitGCInvokesConcurrent -XX:+ParallelRefProcEnabled -XX:+UseStringDeduplication"
+[3] 
+* Linux OS File Descriptors: Jira 10 tracks thousands of individual background Lucene search index segments. If your OS limits are left at default values, Jira will throw java.io.IOException: Too many open files. You must explicitly configure /etc/security/limits.conf on your host or inside your container runtime:
+jira  soft  nofile  65536
+jira  hard  nofile  65536
+* Database Connection Pool Sizing: Because your DR or target Jira 10 site handles a clean, automated background reindex on startup, database read/write spikes will surge. Inside dbconfig.xml, increase your <pool-max-size> from the default value of 20 up to 60 or 100 to prevent connection starvation during a failover event.
+------------------------------
+## Tier 2: User-Level Functional Best Practices
+An upgrade is useless if user habits degrade database health. You must establish strict boundaries for how users manage fields, hierarchies, and project lifecycles: [4, 5] 
+Custom Field Hygiene Rules: In Jira 8, administrators often allowed users to create unlimited custom fields. In Jira 10, every single custom field degrades search indexing performance globally. Enforce a "Global Field Reuse" policy. Custom fields must be project-specific using strict context mapping rather than globally applied, preventing index bloat. [4] 
+The Issue Hierarchy Standard: Establish a mandatory issue hierarchy structure. Users must not create massive "flat" backlogs of thousands of unlinked tasks. To utilize Jira 10’s native Advanced Roadmaps capacity engine, all work items must cleanly roll up: Sub-task ➔ Story/Task ➔ Epic ➔ Initiative. [6, 7, 8] 
+Mandatory Attachment Constraints: Because attachments are mirrored across your contours via rsync, unconstrained file uploads will bloat your network transfer windows. Use Jira Advanced Settings to cap individual file sizes at 50MB and explicitly block unnecessary executable extensions (.exe, .iso, .dmg).
+------------------------------
+## Tier 3: Additional Atlassian Product Installations
+Jira 10 rarely runs completely alone; it requires a tightly coupled, self-hosted data ecosystem within your isolated network: [9] 
+Confluence 9.x LTS (Knowledge Base): Essential for documentation. To link Jira 10 issues cleanly to Confluence pages, you must deploy Confluence 9.x LTS. Older Confluence versions (v7/v8) utilize obsolete AppLink authentication tokens that Jira 10 will explicitly reject.
+Bitbucket Server/Data Center 9.x (Git Repository): To see active development, commits, and pull requests directly inside Jira 10 issue panels, you must integrate Bitbucket.
+Atlassian Crowd Data Center (Centralized Identity & SSO): Since you are operating inside isolated contours with restricted Active Directory hooks, installing an independent Atlassian Crowd instance inside the DR contour acts as a single-sign-on identity broker. It allows you to mirror groups and users locally to all your Atlassian apps
+14:16
+simultaneously.
+------------------------------
+## Tier 4: High-Level Cross-Contour Integrations
+Managing integrations inside an isolated or air-gapped network requires dedicated bridge architectures: [2, 10] 
+[ PRODUCTION NETWORK CONTOUR ]                    [ ISOLATED DR CONTOUR ]
+┌────────────────────────────┐                    ┌────────────────────────────┐
+│  Production GitLab Server  │                    │     DR GitLab Server       │
+└─────────────┬──────────────┘                    └─────────────┬──────────────┘
+              │                                                 │
+   (Webhooks Blocked by Diode)                      (Local Fallback Webhooks)
+              │                                                 │
+              ▼                                                 ▼
+┌────────────────────────────┐                    ┌────────────────────────────┐
+│    Jira 10 Production      │ ──► [ WAL-G / RSYNC ] ──► │       Jira 10 DR           │
+└────────────────────────────┘                    └────────────────────────────┘
+GitLab/GitHub Self-Hosted Mirroring: If your engineering teams use GitLab or GitHub, you cannot link Jira 10 directly across the contours. You must host a GitLab Mirror Instance inside your DR contour.
+The Integration Failover Rule: Your automation scripts must configure Jira 10 to point to the local DR GitLab instance via OAuth. When a failover happens, developers shift their git pushes to the DR GitLab, and development panels inside Jira 10 update seamlessly using local network resources.
+The API Integration Proxy: For third-party security scanners, test automation tools (like SonarQube or Xray), or custom scripts, do not expose raw Jira API endpoints across network loops. Deploy a lightweight API Reverse Proxy (NGINX/HAProxy) at your contour perimeter. The proxy acts as a secure traffic filter, scrubbing incoming requests, validating local bearer tokens, and passing clean traffic into Jira 10. [2] 
+------------------------------
+## Summary Architectural Execution Plan
+| Priority Layer [2, 3, 4, 6, 7, 8, 9, 10] | Target Component | Core Action | Why It's Critical |
+|---|---|---|---|
+| Low-Level | System / OS JVM | Set G1GC, update file descriptors to 65536. | Prevents JVM freeze under Java 17 and Lucene index limits. |
+| User/Process | Custom Fields | Restrict contexts; enforce 4-tier hierarchy. | Keeps indexing times low and optimizes Advanced Roadmaps. |
+| Products | Confluence / Crowd | Install v9+ LTS apps alongside Jira 10. | Ensures secure AppLink authentication tokens remain valid. |
+| High-Level | Network / CI-CD | Establish local git mirrors and API reverse proxies. | Bypasses air-gap network limitations without breaking webhooks. |
+------------------------------
+To help complete the deployment templates for these components, do you need the recommended memory allocation settings (Xms/Xmx Heap configuration ratios) for sizing your companion Confluence and Jira instances on your virtualization host? [11, 12] 
+[1] https://confluence.atlassian.com
+[2] https://www.researchgate.net
+[3] https://community.atlassian.com
+[4] https://confluence.atlassian.com
+[5] https://community.atlassian.com
+[6] https://community.atlassian.com
+[7] https://www.tempo.io
+14:16
+[8] https://confluence.atlassian.com
+[9] https://confluence.atlassian.com
+[10] https://exalate.com
+[11] https://subscription.packtpub.com
+[12] https://invgate.com
+14:16
+
