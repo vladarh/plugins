@@ -1,1 +1,2 @@
 jira-source-plugin/activitytimeline-11.9.1-1835.jar filter=lfs diff=lfs merge=lfs -text
+jira-source-plugin/migration/configuration-manager-9.0.0-jira9-10.obr filter=lfs diff=lfs merge=lfs -text
