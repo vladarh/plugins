@@ -34,6 +34,10 @@
 - применение действующего license key,
 - что делать, если вендор требует офлайн-активацию.
 
+
+
+java -jar /opt/atlassian/confluence/atlassian-agent.jar -p com.xdevpod.confluence.plugins.excalidraw -m admin@local.com -n Admin -o Enterprise -s ABCD-1234-EFGH-5678
+
 ---
 
 # 2) Что добавить в values для Jira
