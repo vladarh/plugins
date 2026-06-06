@@ -1,0 +1,210 @@
+root@jira-0:/var/atlassian/application-data/jira# ls -1 /var/atlassian/application-data/shared-home/plugins/installed
+-plugins 2>/dev/null | grep -Ei "jira-software|greenhopper" || echo "NONE"
+NONE
+root@jira-0:/var/atlassian/application-data/jira# ls -1 /var/atlassian/application-data/shared-home/plugins/installed-plugins 2>/dev/null | grep -Ei "jira|greenhopper" || echo "NONE"
+NONE
+root@jira-0:/var/atlassian/application-data/jira# ls -1 /var/atlassian/application-data/shared-home/plugins/installed-plugins 2>/dev/null | grep -Ei "jira" || echo "NONE"
+NONE
+root@jira-0:/var/atlassian/application-data/jira# ls -1 /var/atlassian/application-data/shared-home/plugins/installed-plugins 2>/dev/null | grep -i "jira" || echo "NONE"
+NONE
+root@jira-0:/var/atlassian/application-data/jira# echo "=== install dir search ==="
+find /opt/atlassian/jira -type f 2>/dev/null | grep -Ei "jira-software|greenhopper" | head -100 || echo "NONE"
+=== install dir search ===
+/opt/atlassian/jira/sbom/atlassian-jira-software-10.6.0.spdx
+/opt/atlassian/jira/sbom/atlassian-jira-software-10.6.0-cyclonedx-sbom.json
+/opt/atlassian/jira/sbom/atlassian-jira-software-10.6.0.csv
+/opt/atlassian/jira/atlassian-jira/images/logos/dark/jira-software.png
+/opt/atlassian/jira/atlassian-jira/images/logos/light/jira-software.png
+/opt/atlassian/jira/atlassian-jira/images/greenhopper/gh-setup-logo.png
+/opt/atlassian/jira/atlassian-jira/images/greenhopper/gh-setup-watermark.png
+/opt/atlassian/jira/atlassian-jira/images/jira-software.svg
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-sk_SK-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-development-integration-plugin-7.3.1.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-portfolio-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-transition-triggers-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-zh_CN-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-pl_PL-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ko_KR-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ja_JP-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-no_NO-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-it_IT-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-fisheye-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-dvcs-connector-plugin-7.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-fi_FI-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/team-management-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-application-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ru_RU-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-de_DE-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-hu_HU-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/portfolio-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-bamboo-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-sv_SE-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-en_US-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-greenhopper-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-is_IS-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-da_DK-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-nl_NL-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ro_RO-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-cs_CZ-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-monitor-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-fr_FR-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-et_EE-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-es_ES-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-pt_BR-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-fr_FR--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-nl_NL--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-cs_CZ--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-en_US--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ja_JP--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-hu_HU--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-pl_PL--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-pt_BR--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-es_ES--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-da_DK--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-sv_SE--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-fi_FI--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-it_IT--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-zh_CN--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-de_DE--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ru_RU--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-is_IS--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-sk_SK--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-no_NO--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ko_KR--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ro_RO--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-et_EE--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/logs/atlassian-greenhopper.log
+root@jira-0:/var/atlassian/application-data/jira# ^C
+root@jira-0:/var/atlassian/application-data/jira# echo "=== all installed-plugins ==="
+ls -1 /var/atlassian/application-data/shared-home/plugins/installed-plugins 2>/dev/null | sort
+=== all installed-plugins ===
+root@jira-0:/var/atlassian/application-data/jira# ls /var/atlassian/application-data/shared-home/plugins/installed-plugins
+root@jira-0:/var/atlassian/application-data/jira# ls /var/atlassian/application-data/shared-home/
+analytics-logs/      export/              node-status/         secured/             
+caches/              import/              plugins/             tmp/                 
+data/                keys/                secrets-config.yaml  
+root@jira-0:/var/atlassian/application-data/jira# ls /var/atlassian/application-data/shared-home/plugins/
+.bundled-plugins/  installed-plugins/ .osgi-plugins/     
+root@jira-0:/var/atlassian/application-data/jira# ls /var/atlassian/application-data/shared-home/plugins/installed-plugins/
+root@jira-0:/var/atlassian/application-data/jira# ls /var/atlassian/application-data/shared-home/plugins/.bundled-plugins/
+root@jira-0:/var/atlassian/application-data/jira# ls /var/atlassian/application-data/shared-home/plugins/.osgi-plugins/
+root@jira-0:/var/atlassian/application-data/jira# echo "=== shared-home installed-plugins ==="
+ls -1 /var/atlassian/application-data/shared-home/plugins/installed-plugins 2>/dev/null | grep -Ei "jira-software|greenhopper" || echo "NONE"
+echo
+echo "=== install dir search ==="
+find /opt/atlassian/jira -type f 2>/dev/null | grep -Ei "jira-software|greenhopper" | head -100 || echo "NONE"\
+=== shared-home installed-plugins ===
+NONE
+
+=== install dir search ===
+> 
+/opt/atlassian/jira/sbom/atlassian-jira-software-10.6.0.spdx
+/opt/atlassian/jira/sbom/atlassian-jira-software-10.6.0-cyclonedx-sbom.json
+/opt/atlassian/jira/sbom/atlassian-jira-software-10.6.0.csv
+/opt/atlassian/jira/atlassian-jira/images/logos/dark/jira-software.png
+/opt/atlassian/jira/atlassian-jira/images/logos/light/jira-software.png
+/opt/atlassian/jira/atlassian-jira/images/greenhopper/gh-setup-logo.png
+/opt/atlassian/jira/atlassian-jira/images/greenhopper/gh-setup-watermark.png
+/opt/atlassian/jira/atlassian-jira/images/jira-software.svg
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-sk_SK-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-development-integration-plugin-7.3.1.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-portfolio-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-transition-triggers-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-zh_CN-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-pl_PL-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ko_KR-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ja_JP-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-no_NO-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-it_IT-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-fisheye-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-dvcs-connector-plugin-7.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-fi_FI-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/team-management-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-application-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ru_RU-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-de_DE-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-hu_HU-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/portfolio-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-bamboo-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-sv_SE-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-en_US-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-greenhopper-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-is_IS-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-da_DK-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-nl_NL-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-ro_RO-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-cs_CZ-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-monitor-plugin-10.6.0.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-fr_FR-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-et_EE-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-es_ES-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/atlassian-jira/WEB-INF/application-installation/jira-software-application/jira-software-language-pack-pt_BR-11.0.0.v20250416075952.jar
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-fr_FR--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-nl_NL--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-cs_CZ--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-en_US--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ja_JP--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-hu_HU--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-pl_PL--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-pt_BR--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-es_ES--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-da_DK--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-sv_SE--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-fi_FI--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-it_IT--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-zh_CN--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-de_DE--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ru_RU--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-is_IS--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-sk_SK--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-no_NO--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ko_KR--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-ro_RO--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/licenses/com.atlassian.translations--jira-software-language-pack-et_EE--11.0.0.v20250416075952.txt
+/opt/atlassian/jira/logs/atlassian-greenhopper.log
+root@jira-0:/var/atlassian/application-data/jira# 
+
+
+
+This container is managed by runit, when stopping/starting services use sv
+
+Examples:
+
+sv stop cron
+sv restart patroni
+
+Current status: (sv status /etc/service/*)
+
+psql -d jira_db -c "
+SELECT pluginkey, pluginenabled
+FROM pluginstate
+WHERE pluginkey LIKE 'com.atlassian.jira%software%'
+   OR pluginkey LIKE '%greenhopper%'
+ORDER BY pluginkey;
+"+ Cluster: sdlc-16 (7647673042244718667) ---------+----+-----------+
+| Member    | Host          | Role    | State     | TL | Lag in MB |
++-----------+---------------+---------+-----------+----+-----------+
+| sdlc-16-0 | 172.30.207.53 | Leader  | running   |  3 |           |
+| sdlc-16-1 | 172.30.207.54 | Replica | streaming |  3 |         0 |
++-----------+---------------+---------+-----------+----+-----------+
+postgres@sdlc-16-0:~$ psql -d jira_db -c "
+> SELECT pluginkey, pluginenabled
+> FROM pluginstate
+> WHERE pluginkey LIKE 'com.atlassian.jira%software%'
+>    OR pluginkey LIKE '%greenhopper%'
+> ORDER BY pluginkey;
+> "^C
+postgres@sdlc-16-0:~$ psql -d jira_db -c "
+SELECT pluginkey, pluginenabled
+FROM pluginstate
+WHERE pluginkey LIKE 'com.atlassian.jira%software%'
+   OR pluginkey LIKE '%greenhopper%'
+ORDER BY pluginkey;
+"
+ pluginkey | pluginenabled 
+-----------+---------------
+(0 rows)
+
+postgres@sdlc-16-0:~$ 
