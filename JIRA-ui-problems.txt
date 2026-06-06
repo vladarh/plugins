@@ -34,6 +34,6 @@ Found 2 backup files in the /var/atlassian/application-data/shared-home/export/b
 Jira is not able to access itself through the Gadget feed URL. This is necessary so that dashboard gadgets can be generated successfully. Please verify the current Base URL and if necessary, review your network configurations to resolve the problem.
 
 Как можно решить эту проблему?
-
+go.atlassian.com&__trap__=ie76cdhi9ekf&__ext__=L3ZlcnNpb25zLWxpY2Vuc2VzLWFwcGxpY2F0aW9uLWRvd25sb2FkLWppcmEtc29mdHdhcmU%3D&&__sc__=dDnU94T38EVM0VjY88h2Aazz6ePuuSq%2blWFSepKuiDiDVdHnQ%2fRS1%2b01mC8OdjTaTWHE%2fmRq6BQBcZ6cH64VMHkWo3gVH43kuSHNszrnOLeY6ZHxkWH%2bzcEs%2bs8dkFxChldKVAf8Q4FGKUtHUiCMcjqzBG%2fX%2fZLrmnQLLNUHsfp%2bIZKPODKpBe%2f1vS5mlCW3kJKUjdhAsqHw%2flnCzvLz1L0Ac56VhNyH1vC8gbD4%2fvmzMVFN2HC%2fHHtDLmy6D5ZabMo5rVk%2bl74SRQ3EItLbtw%3d%3d&__ssl__=false
 Настройка проверки
 Включить эту проверку
