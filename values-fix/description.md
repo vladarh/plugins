@@ -1,3 +1,313 @@
+Да — сделаем по-русски.
+
+## Коротко по главному
+
+1. **Да, можно настроить Jira и Confluence для работы в изолированном контуре**:  
+   - отключить Marketplace/UPM-доступ наружу;
+   - загружать плагины из файлов (`.jar` / `.obr`);
+   - использовать ваши PVC в Kubernetes/Alauda.
+
+2. **Нет, с “Atlassian Agent” я не помогу.**  
+   Если вы имеете в виду обход лицензирования/взлом активации — это нелегально.  
+   Для платных приложений используйте **официальную лицензию**, trial или ключ от вендора/Marketplace.
+
+3. **`.jar` и `.obr` нужно обрабатывать по-разному**:
+   - **JAR** — можно класть в файловую систему/PVC;
+   - **OBR** — лучше загружать через **Upload app** в UPM;
+   - для **Confluence** класть `.obr` в scan-directory **не рекомендуется**, это известная проблема. [1](https://confluence.atlassian.com/doc/managing-add-ons-or-plugins-25788666.html) [2](https://jira.atlassian.com/browse/CONFSERVER-95831)
+
+---
+
+# 1) Можно ли активировать плагины через Atlassian Agent?
+
+**Нет.**  
+Я не могу помогать с использованием **Atlassian Agent** или других способов обхода лицензирования.
+
+### Что делать правильно
+После установки плагина:
+- если он **бесплатный** — обычно достаточно установки;
+- если он **платный** — активируете его **официальным ключом** вендора / Atlassian Marketplace;
+- если контур изолированный — ставите плагин **из файла**, а потом вносите **валидную лицензию вручную**.
+
+Если хотите, я могу отдельно подсказать **легальную офлайн-схему**:
+- установка из `.jar` / `.obr`,
+- применение действующего license key,
+- что делать, если вендор требует офлайн-активацию.
+
+---
+
+# 2) Что добавить в values для Jira
+
+Для **Jira** добавьте:
+
+```yaml
+jira:
+  additionalJvmArgs:
+    - "-Dupm.pac.disable=true"
+    - "-Dupm.plugin.upload.enabled=true"
+    # если будет ошибка подписи приложений:
+    # - "-Datlassian.upm.signature.check.disabled=true"
+    # если плагины долго стартуют:
+    # - "-Datlassian.plugins.enable.wait=300"
+```
+
+### Что это делает
+- `-Dupm.pac.disable=true` — отключает доступ UPM к Atlassian Marketplace. [2](https://confluence.atlassian.com/upm/problems-connecting-to-the-atlassian-marketplace-273875718.html)
+- `-Dupm.plugin.upload.enabled=true` — возвращает кнопку **Upload app** в Jira. Atlassian отдельно пишет, что для Kubernetes/Helm это делается через `additionalJvmArgs`. [3](https://support.atlassian.com/jira/kb/how-to-re-enable-plugin-upload-in-jira-data-center/)
+
+---
+
+# 3) Что добавить в values для Confluence
+
+Для **Confluence** добавьте:
+
+```yaml
+confluence:
+  additionalJvmArgs:
+    - "-Dupm.pac.disable=true"
+    - "-Dupm.plugin.upload.enabled=true"
+    - "-Datlassian.confluence.plugin.scan.directory=/var/atlassian/application-data/shared-home/plugins/installed-plugins"
+    # если будет ошибка подписи приложений:
+    # - "-Datlassian.upm.signature.check.disabled=true"
+```
+
+### Что это делает
+- отключает Marketplace/UPM наружу [2](https://confluence.atlassian.com/upm/problems-connecting-to-the-atlassian-marketplace-273875718.html)
+- включает **Upload app** в Confluence [1](https://confluence.atlassian.com/doc/managing-add-ons-or-plugins-25788666.html)
+- заставляет Confluence сканировать каталог с плагинами при старте [1](https://confluence.atlassian.com/doc/managing-add-ons-or-plugins-25788666.html)
+
+---
+
+# 4) Куда класть файлы на PVC
+
+У вас уже есть `sharedHome`, значит можно использовать его.
+
+## Jira
+Для кластера Jira ручная установка JAR делается в:
+
+```text
+/var/atlassian/application-data/shared-home/plugins/installed-plugins/
+```
+
+Atlassian прямо пишет, что в cluster/DC-режиме нужно использовать **shared home/plugins/installed-plugins**. [3](https://support.atlassian.com/jira/kb/how-to-re-enable-plugin-upload-in-jira-data-center/)
+
+## Confluence
+Для Confluence с `atlassian.confluence.plugin.scan.directory` используйте:
+
+```text
+/var/atlassian/application-data/shared-home/plugins/installed-plugins/
+```
+
+---
+
+# 5) Как обрабатывать `.jar` и `.obr`
+
+## Вариант A — если у вас `.jar`
+
+### Jira + JAR
+Просто копируете `.jar` в:
+
+```text
+/var/atlassian/application-data/shared-home/plugins/installed-plugins/
+```
+
+и перезапускаете pod(ы). [3](https://support.atlassian.com/jira/kb/how-to-re-enable-plugin-upload-in-jira-data-center/)
+
+### Confluence + JAR
+Копируете `.jar` в:
+
+```text
+/var/atlassian/application-data/shared-home/plugins/installed-plugins/
+```
+
+и перезапускаете pod(ы).  
+Confluence подхватит JAR из scan-directory на старте. [1](https://confluence.atlassian.com/doc/managing-add-ons-or-plugins-25788666.html)
+
+---
+
+## Вариант B — если у вас `.obr`
+
+### Jira + OBR
+Для Jira **лучший путь** — **Upload app** через UI после включения:
+
+```yaml
+- "-Dupm.plugin.upload.enabled=true"
+```
+
+UPM принимает файлы **JAR и OBR**. [8](https://confluence.atlassian.com/upm/installing-marketplace-apps-273875715.html)
+
+### Confluence + OBR
+Для Confluence тоже лучше **Upload app** через UI.  
+**Не кладите `.obr` в `plugin.scan.directory`**, потому что это известная проблема: Confluence scan-directory рассчитан на plugin jars, а `.obr` через этот путь работает некорректно. [1](https://confluence.atlassian.com/doc/managing-add-ons-or-plugins-25788666.html) [2](https://jira.atlassian.com/browse/CONFSERVER-95831)
+
+---
+
+# 6) Если нужно “конвертировать” OBR
+
+Тут важный момент:
+
+## OBR → это не просто “тот же JAR”
+OBR — это контейнер/архив с одним или несколькими plugin bundles и зависимостями. [7](https://developer.atlassian.com/server/framework/atlassian-sdk/bundling-extra-dependencies-in-an-obr/)
+
+### Поэтому:
+- **не каждый OBR можно просто “превратить” в один JAR**;
+- иногда внутри OBR лежит:
+  - основной plugin JAR,
+  - дополнительные JAR-зависимости,
+  - `obr.xml`.
+
+## Когда extraction допустим
+Если вам нужно использовать:
+- `additionalBundledPlugins`,
+- или Confluence scan-directory,
+- или класть артефакты вручную на PVC,
+
+то OBR можно **распаковать и посмотреть JAR-файлы** внутри.
+
+### Пример
+```bash
+unzip my-plugin.obr -d my-plugin-obr
+find my-plugin-obr -name "*.jar"
+```
+
+После этого обычно видно:
+- основной JAR,
+- возможные dependency JAR.
+
+## Но важно
+- Для **Confluence** в scan-directory кладите **JAR**, не OBR. [2](https://jira.atlassian.com/browse/CONFSERVER-95831)
+- Для **Jira** извлекать JAR из OBR можно **только если вендор это допускает**.  
+  Иначе правильнее грузить **сам OBR через Upload app**.
+
+---
+
+# 7) Если хотите управлять JAR через Helm, а не через UI
+
+У вас в values уже есть:
+- `jira.additionalBundledPlugins`
+- `confluence.additionalBundledPlugins`
+
+Это пригодно для **JAR-only** сценария. В Atlassian chart указано, что `additionalBundledPlugins` — это путь для дополнительных bundled plugins, и **только `.jar`**, а `.obr` нужно распаковать, чтобы получить JAR. [4](https://artifacthub.io/packages/helm/atlassian-data-center/confluence)
+
+## Пример для Jira
+```yaml
+jira:
+  additionalBundledPlugins:
+    - volumeName: shared-home
+      subDirectory: helm-plugins
+      fileName: my-jira-plugin.jar
+```
+
+## Пример для Confluence
+```yaml
+confluence:
+  additionalBundledPlugins:
+    - volumeName: shared-home
+      subDirectory: helm-plugins
+      fileName: my-confluence-plugin.jar
+```
+
+### Когда это удобно
+Если хотите:
+- хранить версию плагина в Git/Helm;
+- чтобы после пересоздания pod плагин оставался;
+- не загружать руками через UI.
+
+### Но
+Для **OBR** этот вариант неудобен.  
+Для OBR я бы рекомендовал **Upload app**.
+
+---
+
+# 8) Практическая схема для вас
+
+С учётом того, что:
+- приложения уже работают,
+- контур изолированный,
+- оркестрация через **Alauda**,
+- хранилище уже на **PVC**,
+
+я бы рекомендовал так:
+
+## Jira
+- добавить:
+  - `-Dupm.pac.disable=true`
+  - `-Dupm.plugin.upload.enabled=true`
+- **JAR** → класть в:
+  ```text
+  /var/atlassian/application-data/shared-home/plugins/installed-plugins/
+  ```
+- **OBR** → ставить через **Upload app**
+
+## Confluence
+- добавить:
+  - `-Dupm.pac.disable=true`
+  - `-Dupm.plugin.upload.enabled=true`
+  - `-Datlassian.confluence.plugin.scan.directory=/var/atlassian/application-data/shared-home/plugins/installed-plugins`
+- **JAR** → класть в scan-directory
+- **OBR** → ставить через **Upload app**
+
+---
+
+# 9) Команды для Kubernetes / Alauda
+
+## Jira: создать каталог
+```bash
+kubectl -n <namespace> exec -it <jira-pod> -- sh -c \
+'mkdir -p /var/atlassian/application-data/shared-home/plugins/installed-plugins'
+```
+
+## Jira: скопировать JAR
+```bash
+kubectl -n <namespace> cp ./my-plugin.jar \
+<jira-pod>:/var/atlassian/application-data/shared-home/plugins/installed-plugins/my-plugin.jar
+```
+
+## Confluence: создать каталог
+```bash
+kubectl -n <namespace> exec -it <confluence-pod> -- sh -c \
+'mkdir -p /var/atlassian/application-data/shared-home/plugins/installed-plugins'
+```
+
+## Confluence: скопировать JAR
+```bash
+kubectl -n <namespace> cp ./my-plugin.jar \
+<confluence-pod>:/var/atlassian/application-data/shared-home/plugins/installed-plugins/my-plugin.jar
+```
+
+После копирования:
+- для **Jira** — rolling restart / restart pod(ов);
+- для **Confluence** — restart pod(ов), чтобы scan-directory подхватился.
+
+---
+
+# 10) Что я советую именно по формату файлов
+
+## Если у вас **JAR**
+Используйте файловую систему/PVC.
+
+## Если у вас **OBR**
+Используйте **Upload app**.
+
+## Если очень нужно использовать OBR без UI
+Тогда:
+1. распаковать OBR,
+2. посмотреть состав,
+3. понять, какой JAR основной,
+4. проверить документацию вендора.
+
+Но это уже зависит от конкретного плагина. Некоторые OBR состоят из нескольких частей, и “просто вынуть один JAR” недостаточно. [7](https://developer.atlassian.com/server/framework/atlassian-sdk/bundling-extra-dependencies-in-an-obr/)
+
+---
+
+Если хотите, я могу следующим сообщением подготовить для вас **готовые фрагменты values.yaml на русском**:
+
+1. **точный patch для Jira**  
+2. **точный patch для Confluence**  
+3. **вариант только для JAR**  
+4. **вариант для смешанного набора JAR + OBR**  
+5. **пошаговую инструкцию именно под Alauda**.
+
 Понял. Ниже даю **рабочий lab/PoC-сценарий** для **изолированного контура**, **без Marketplace**, с учетом того, что **в UI сейчас нет Upload App**, и отдельно — **права/owner/mode** для PVC.
 
 ## Важное сразу
